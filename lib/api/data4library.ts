@@ -1,7 +1,9 @@
+import "server-only";
 import type { Book, Library, PhysicalAvailability } from "@/types";
 
 const BASE_URL = "https://data4library.kr/api";
 const SEOUL_REGION_CODE = "11";
+export const BOOKS_PAGE_SIZE = 10;
 
 function getApiKey(): string {
   const key = process.env.DATA4LIBRARY_API_KEY;
@@ -79,7 +81,7 @@ export async function searchBooks(
   const url = buildUrl("/srchBooks", {
     keyword,
     pageNo: String(pageNo),
-    pageSize: "10",
+    pageSize: String(BOOKS_PAGE_SIZE),
   });
   const response = await fetch(url);
 

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { searchBooks } from "@/lib/api/data4library";
+import { searchBooks, BOOKS_PAGE_SIZE } from "@/lib/api/data4library";
 import type { Book } from "@/types";
 
 type BooksResponse = {
@@ -32,7 +32,7 @@ export async function GET(
     return NextResponse.json({
       success: true,
       data: books,
-      meta: { total, page: pageNo, limit: 10 },
+      meta: { total, page: pageNo, limit: BOOKS_PAGE_SIZE },
     });
   } catch (error: unknown) {
     const message =
