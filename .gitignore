@@ -1,0 +1,30 @@
+# Claude Code
+.claude/
+
+# Playwright MCP
+.playwright-mcp/
+
+# Dependencies
+node_modules/
+
+# Build output
+.next/
+dist/
+out/
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# IDE
+.vscode/
+.idea/
