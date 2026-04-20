@@ -48,21 +48,40 @@ type Data4LibraryAvailabilityResult = {
   loanAvailable: "Y" | "N";
 };
 
-export async function fetchSeoulLibraries(): Promise<Library[]> {
-  const url = buildUrl("/libSrch", { region: SEOUL_REGION_CODE });
+type Data4LibraryLibResponse = {
+  response?: {
+    numFound?: number;
+    libs?: Array<{ lib: Data4LibraryLibItem }>;
+  };
+};
+
+async function fetchLibrariesPage(
+  pageSize: number
+): Promise<Data4LibraryLibResponse> {
+  const url = buildUrl("/libSrch", {
+    region: SEOUL_REGION_CODE,
+    pageSize: String(pageSize),
+  });
   const response = await fetch(url);
 
   if (!response.ok) {
     throw new Error(`Libraries API error: ${response.status}`);
   }
 
-  const json = (await response.json()) as {
-    response?: {
-      libs?: Array<{ lib: Data4LibraryLibItem }>;
-    };
-  };
+  return (await response.json()) as Data4LibraryLibResponse;
+}
 
-  const items = json.response?.libs ?? [];
+export async function fetchSeoulLibraries(): Promise<Library[]> {
+  const peek = await fetchLibrariesPage(1);
+  const total = peek.response?.numFound ?? 0;
+
+  if (total === 0) {
+    return [];
+  }
+
+  const full = await fetchLibrariesPage(total);
+  const items = full.response?.libs ?? [];
+
   return items.map(({ lib }) => ({
     libCode: lib.libCode,
     libName: lib.libName,
