@@ -31,3 +31,8 @@ logs/
 # IDE
 .vscode/
 .idea/
+
+# Orchestrator scratch — keep canonical specs in docs/issues/ instead
+_workspace/
+
+
