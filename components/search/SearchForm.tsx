@@ -16,7 +16,7 @@ export function SearchForm({ selectedLibCodes }: SearchFormProps) {
   const isDisabled =
     selectedLibCodes.length === 0 || keyword.trim().length === 0;
 
-  function handleSubmit(e: React.ChangeEvent<HTMLFormElement>) {
+  function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (isDisabled) return;
 

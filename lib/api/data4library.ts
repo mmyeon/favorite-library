@@ -34,13 +34,13 @@ type Data4LibraryLibItem = {
 };
 
 type Data4LibraryBookItem = {
-  title: string;
-  author: string;
+  bookname: string;
+  authors: string;
   publisher: string;
-  publicationYear: string;
+  publication_year: string;
   isbn13: string;
   bookImageURL: string;
-  description: string;
+  description?: string;
 };
 
 type Data4LibraryAvailabilityResult = {
@@ -48,21 +48,40 @@ type Data4LibraryAvailabilityResult = {
   loanAvailable: "Y" | "N";
 };
 
-export async function fetchSeoulLibraries(): Promise<Library[]> {
-  const url = buildUrl("/libSrch", { region: SEOUL_REGION_CODE });
+type Data4LibraryLibResponse = {
+  response?: {
+    numFound?: number;
+    libs?: Array<{ lib: Data4LibraryLibItem }>;
+  };
+};
+
+async function fetchLibrariesPage(
+  pageSize: number,
+): Promise<Data4LibraryLibResponse> {
+  const url = buildUrl("/libSrch", {
+    region: SEOUL_REGION_CODE,
+    pageSize: String(pageSize),
+  });
   const response = await fetch(url);
 
   if (!response.ok) {
     throw new Error(`Libraries API error: ${response.status}`);
   }
 
-  const json = (await response.json()) as {
-    response?: {
-      libs?: Array<{ lib: Data4LibraryLibItem }>;
-    };
-  };
+  return (await response.json()) as Data4LibraryLibResponse;
+}
 
-  const items = json.response?.libs ?? [];
+export async function fetchSeoulLibraries(): Promise<Library[]> {
+  const peek = await fetchLibrariesPage(1);
+  const total = peek.response?.numFound ?? 0;
+
+  if (total === 0) {
+    return [];
+  }
+
+  const full = await fetchLibrariesPage(total);
+  const items = full.response?.libs ?? [];
+
   return items.map(({ lib }) => ({
     libCode: lib.libCode,
     libName: lib.libName,
@@ -74,14 +93,17 @@ export async function fetchSeoulLibraries(): Promise<Library[]> {
   }));
 }
 
-export async function searchBooks(
+const MAX_UPSTREAM_RESULTS = 200;
+
+async function fetchBooksRaw(
   keyword: string,
-  pageNo: number
-): Promise<{ books: Book[]; total: number }> {
+  pageNo: number,
+  pageSize: number,
+): Promise<{ items: Array<{ doc: Data4LibraryBookItem }>; numFound: number }> {
   const url = buildUrl("/srchBooks", {
     keyword,
     pageNo: String(pageNo),
-    pageSize: String(BOOKS_PAGE_SIZE),
+    pageSize: String(pageSize),
   });
   const response = await fetch(url);
 
@@ -96,26 +118,47 @@ export async function searchBooks(
     };
   };
 
-  const items = json.response?.docs ?? [];
-  const total = json.response?.numFound ?? 0;
-
   return {
-    books: items.map(({ doc }) => ({
-      title: doc.title,
-      author: doc.author,
-      publisher: doc.publisher,
-      publicationYear: doc.publicationYear,
-      isbn13: doc.isbn13,
-      bookImageURL: doc.bookImageURL,
-      description: doc.description,
-    })),
-    total,
+    items: json.response?.docs ?? [],
+    numFound: json.response?.numFound ?? 0,
   };
+}
+
+export async function searchBooks(
+  keyword: string,
+  pageNo: number,
+): Promise<{ books: Book[]; total: number }> {
+  const first = await fetchBooksRaw(keyword, 1, MAX_UPSTREAM_RESULTS);
+  const items = first.items;
+
+  const books: Book[] = items.map(({ doc }) => ({
+    title: doc.bookname,
+    author: doc.authors,
+    publisher: doc.publisher,
+    publicationYear: doc.publication_year,
+    isbn13: doc.isbn13,
+    bookImageURL: doc.bookImageURL,
+    description: doc.description ?? "",
+  }));
+
+  const normalized = keyword.trim().toLowerCase();
+  const filtered = normalized
+    ? books.filter(
+        (b) =>
+          b.title.toLowerCase().includes(normalized) ||
+          b.author.toLowerCase().includes(normalized),
+      )
+    : books;
+
+  const start = (pageNo - 1) * BOOKS_PAGE_SIZE;
+  const pageBooks = filtered.slice(start, start + BOOKS_PAGE_SIZE);
+
+  return { books: pageBooks, total: filtered.length };
 }
 
 export async function fetchBookAvailability(
   isbn13: string,
-  libCode: string
+  libCode: string,
 ): Promise<PhysicalAvailability | null> {
   const url = buildUrl("/bookExist", { isbn13, libCode });
   const response = await fetch(url);

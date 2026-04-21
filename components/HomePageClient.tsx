@@ -46,19 +46,19 @@ export function HomePageClient({ allLibraries }: HomePageClientProps) {
         <h2 className="mb-2 text-sm font-medium text-foreground">
           도서관 검색
         </h2>
-        <LibrarySelector
-          allLibraries={allLibraries}
-          selectedLibCodes={selectedLibCodes}
-          onSelectionChange={handleSelectionChange}
-        />
         {selectedLibraries.length > 0 && (
-          <div className="mt-3">
+          <div className="mb-3">
             <SelectedLibraryBadges
               selectedLibraries={selectedLibraries}
               onRemove={handleRemove}
             />
           </div>
         )}
+        <LibrarySelector
+          allLibraries={allLibraries}
+          selectedLibCodes={selectedLibCodes}
+          onSelectionChange={handleSelectionChange}
+        />
       </section>
 
       <section aria-label="책 검색">
