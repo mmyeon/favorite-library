@@ -231,3 +231,40 @@ export async function fetchBookAvailability(
     loanAvailable: result.loanAvailable,
   };
 }
+
+export async function fetchBookLoanStatus(
+  isbn13: string,
+  libCode: string,
+): Promise<Result<{ hasBook: "Y" | "N"; loanAvailable: "Y" | "N" }>> {
+  try {
+    const url = buildUrl("/bookExist", { isbn13, libCode });
+    const response = await fetch(url, {
+      signal: AbortSignal.timeout(DEFAULT_TIMEOUT_MS),
+    });
+
+    if (!response.ok) {
+      return {
+        success: false,
+        error: `bookExist API error: ${response.status}`,
+      };
+    }
+
+    const json = (await response.json()) as {
+      response?: { result?: Data4LibraryAvailabilityResult };
+    };
+
+    const result = json.response?.result;
+    if (!result) {
+      return { success: false, error: "bookExist: empty result" };
+    }
+
+    return {
+      success: true,
+      data: { hasBook: result.hasBook, loanAvailable: result.loanAvailable },
+    };
+  } catch (error: unknown) {
+    const message =
+      error instanceof Error ? error.message : "bookExist request failed";
+    return { success: false, error: message };
+  }
+}

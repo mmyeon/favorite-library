@@ -1,60 +1,77 @@
 import { NextRequest, NextResponse } from "next/server";
-import { fetchBookAvailability } from "@/lib/api/data4library";
-import type { PhysicalAvailability } from "@/types";
+import {
+  checkLoanStatus,
+  type CheckLoanStatusData,
+} from "@/lib/services/book-availability";
 
-type BookAvailabilityResponse = {
+type ApiResponse<T> = {
   success: boolean;
-  data?: PhysicalAvailability[];
+  data?: T;
   error?: string;
 };
 
-export async function GET(
-  request: NextRequest
-): Promise<NextResponse<BookAvailabilityResponse>> {
-  const { searchParams } = request.nextUrl;
-  const isbn13 = searchParams.get("isbn13")?.trim() ?? "";
-  const libCodesParam = searchParams.get("libCodes")?.trim() ?? "";
+type PostBody = {
+  isbn13?: unknown;
+  libCodes?: unknown;
+};
 
-  if (!isbn13) {
-    return NextResponse.json(
-      { success: false, error: "isbn13 is required" },
-      { status: 400 }
-    );
+function parseBody(raw: unknown):
+  | { success: true; isbn13: string; libCodes: string[] }
+  | { success: false; error: string } {
+  if (!raw || typeof raw !== "object") {
+    return { success: false, error: "Request body must be a JSON object" };
   }
 
-  if (!libCodesParam) {
-    return NextResponse.json(
-      { success: false, error: "libCodes is required" },
-      { status: 400 }
-    );
+  const body = raw as PostBody;
+
+  if (typeof body.isbn13 !== "string" || body.isbn13.trim().length === 0) {
+    return { success: false, error: "isbn13 is required" };
   }
 
-  const libCodes = libCodesParam
-    .split(",")
+  if (!Array.isArray(body.libCodes)) {
+    return { success: false, error: "libCodes must be an array" };
+  }
+
+  const libCodes = body.libCodes
+    .filter((code): code is string => typeof code === "string")
     .map((code) => code.trim())
-    .filter(Boolean);
+    .filter((code) => code.length > 0);
 
+  return { success: true, isbn13: body.isbn13.trim(), libCodes };
+}
+
+export async function POST(
+  request: NextRequest,
+): Promise<NextResponse<ApiResponse<CheckLoanStatusData>>> {
+  let rawBody: unknown;
   try {
-    const results = await Promise.allSettled(
-      libCodes.map((libCode) => fetchBookAvailability(isbn13, libCode))
-    );
-
-    const data: PhysicalAvailability[] = results
-      .filter(
-        (r): r is PromiseFulfilledResult<PhysicalAvailability> =>
-          r.status === "fulfilled" && r.value !== null
-      )
-      .map((r) => r.value);
-
-    return NextResponse.json({ success: true, data });
-  } catch (error: unknown) {
-    const message =
-      error instanceof Error
-        ? error.message
-        : "Failed to fetch book availability";
+    rawBody = await request.json();
+  } catch {
     return NextResponse.json(
-      { success: false, error: message },
-      { status: 500 }
+      { success: false, error: "Invalid JSON body" },
+      { status: 400 },
     );
   }
+
+  const parsed = parseBody(rawBody);
+  if (!parsed.success) {
+    return NextResponse.json(
+      { success: false, error: parsed.error },
+      { status: 400 },
+    );
+  }
+
+  const result = await checkLoanStatus({
+    isbn13: parsed.isbn13,
+    libCodes: parsed.libCodes,
+  });
+
+  if (!result.success) {
+    return NextResponse.json(
+      { success: false, error: result.error },
+      { status: 502 },
+    );
+  }
+
+  return NextResponse.json({ success: true, data: result.data });
 }

@@ -1,8 +1,11 @@
 import Image from "next/image";
 import { PhysicalOwnershipBadge } from "@/components/search/PhysicalOwnershipBadge";
 import { EbookBadge } from "@/components/search/EbookBadge";
-import type { PhysicalOwnership } from "@/lib/services/book-existence";
-import type { EbookExistence } from "@/lib/services/book-existence";
+import { AvailabilityCheckButton } from "@/components/search/AvailabilityCheckButton";
+import type {
+  PhysicalOwnership,
+  EbookExistence,
+} from "@/lib/services/book-existence";
 import type { Book, Library } from "@/types";
 
 interface BookCardProps {
@@ -89,6 +92,14 @@ export function BookCard({
           </tbody>
         </table>
       </div>
+
+      <AvailabilityCheckButton
+        isbn13={book.isbn13}
+        owningLibCodes={
+          ownership ? Array.from(ownership.owningLibCodes) : []
+        }
+        libraries={libraries}
+      />
     </article>
   );
 }
