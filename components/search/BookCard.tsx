@@ -1,18 +1,23 @@
-import { Suspense } from "react";
 import Image from "next/image";
 import { PhysicalOwnershipBadge } from "@/components/search/PhysicalOwnershipBadge";
-import { EbookAvailabilityCell } from "@/components/search/EbookAvailabilityCell";
-import { AvailabilitySkeleton } from "@/components/search/AvailabilitySkeleton";
+import { EbookBadge } from "@/components/search/EbookBadge";
 import type { PhysicalOwnership } from "@/lib/services/book-existence";
+import type { EbookExistence } from "@/lib/services/book-existence";
 import type { Book, Library } from "@/types";
 
 interface BookCardProps {
   book: Book;
   libraries: Library[];
   ownership: PhysicalOwnership | null;
+  ebook: EbookExistence | null;
 }
 
-export function BookCard({ book, libraries, ownership }: BookCardProps) {
+export function BookCard({
+  book,
+  libraries,
+  ownership,
+  ebook,
+}: BookCardProps) {
   return (
     <article className="rounded-lg border border-border p-4">
       <div className="flex gap-4">
@@ -77,13 +82,7 @@ export function BookCard({ book, libraries, ownership }: BookCardProps) {
               </td>
               {libraries.map((lib) => (
                 <td key={lib.libCode} className="px-3 py-2">
-                  <Suspense fallback={<AvailabilitySkeleton />}>
-                    <EbookAvailabilityCell
-                      keyword={book.title}
-                      libCode={lib.libCode}
-                      homepage={lib.homepage}
-                    />
-                  </Suspense>
+                  <EbookBadge ebook={ebook} libCode={lib.libCode} />
                 </td>
               ))}
             </tr>

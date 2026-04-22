@@ -1,4 +1,4 @@
-import { scrapeEbookAvailability } from "@/lib/api/ebook-scraper";
+import { scrapeEbookAvailabilityLegacy as scrapeEbookAvailability } from "@/lib/api/ebook-scraper";
 
 interface EbookAvailabilityCellProps {
   keyword: string;
