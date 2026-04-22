@@ -4,6 +4,11 @@ import type { Book, Library, PhysicalAvailability } from "@/types";
 const BASE_URL = "https://data4library.kr/api";
 const SEOUL_REGION_CODE = "11";
 export const BOOKS_PAGE_SIZE = 10;
+const DEFAULT_TIMEOUT_MS = 5000;
+
+export type Result<T> =
+  | { success: true; data: T }
+  | { success: false; error: string };
 
 function getApiKey(): string {
   const key = process.env.DATA4LIBRARY_API_KEY;
@@ -154,6 +159,47 @@ export async function searchBooks(
   const pageBooks = filtered.slice(start, start + BOOKS_PAGE_SIZE);
 
   return { books: pageBooks, total: filtered.length };
+}
+
+type Data4LibraryLibByBookResponse = {
+  response?: {
+    numFound?: number;
+    libs?: Array<{ lib: { libCode: string; libName?: string } }>;
+  };
+};
+
+export async function fetchLibrariesByBook(
+  isbn13: string,
+  region: string = SEOUL_REGION_CODE,
+): Promise<Result<{ libCodes: string[] }>> {
+  try {
+    const url = buildUrl("/libSrchByBook", {
+      isbn: isbn13,
+      region,
+    });
+    const response = await fetch(url, {
+      signal: AbortSignal.timeout(DEFAULT_TIMEOUT_MS),
+    });
+
+    if (!response.ok) {
+      return {
+        success: false,
+        error: `libSrchByBook API error: ${response.status}`,
+      };
+    }
+
+    const json = (await response.json()) as Data4LibraryLibByBookResponse;
+    const items = json.response?.libs ?? [];
+    const libCodes = items
+      .map(({ lib }) => lib.libCode)
+      .filter((code): code is string => Boolean(code));
+
+    return { success: true, data: { libCodes } };
+  } catch (error: unknown) {
+    const message =
+      error instanceof Error ? error.message : "libSrchByBook request failed";
+    return { success: false, error: message };
+  }
 }
 
 export async function fetchBookAvailability(

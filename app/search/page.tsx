@@ -4,6 +4,8 @@ import {
   fetchSeoulLibraries,
   BOOKS_PAGE_SIZE,
 } from "@/lib/api/data4library";
+import { getPhysicalOwnership } from "@/lib/services/book-existence";
+import type { PhysicalOwnership } from "@/lib/services/book-existence";
 import { SearchHeader } from "@/components/search/SearchHeader";
 import { BookCard } from "@/components/search/BookCard";
 import { EmptyState } from "@/components/search/EmptyState";
@@ -43,6 +45,20 @@ export default async function SearchPage(props: {
     selectedLibCodes.includes(lib.libCode),
   );
 
+  const ownershipResults = await Promise.allSettled(
+    books.map((book) => getPhysicalOwnership(book.isbn13)),
+  );
+
+  const ownershipByIsbn = new Map<string, PhysicalOwnership | null>();
+  books.forEach((book, index) => {
+    const settled = ownershipResults[index];
+    if (settled.status === "fulfilled" && settled.value.success) {
+      ownershipByIsbn.set(book.isbn13, settled.value.data);
+    } else {
+      ownershipByIsbn.set(book.isbn13, null);
+    }
+  });
+
   return (
     <main className="mx-auto min-h-screen max-w-2xl px-4 py-10">
       <SearchHeader
@@ -61,6 +77,7 @@ export default async function SearchPage(props: {
                 key={book.isbn13}
                 book={book}
                 libraries={selectedLibraries}
+                ownership={ownershipByIsbn.get(book.isbn13) ?? null}
               />
             ))}
           </div>
